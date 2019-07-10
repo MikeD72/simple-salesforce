@@ -1,6 +1,9 @@
 """Utility functions for simple-salesforce"""
 
 import xml.dom.minidom
+import csv
+import io
+from itertools import chain
 
 from simple_salesforce.exceptions import (
     SalesforceGeneralError, SalesforceExpiredSession,
@@ -75,3 +78,53 @@ def call_salesforce(url, method, session, headers, **kwargs):
         exception_handler(result)
 
     return result
+
+
+def json_list_to_file(data):
+    """Returns a CSV from a list of json objects"""
+    output = io.StringIO(newline=None) # newlines are translated to the system default line separator, os.linesep
+    sentinel = 0
+    for row in data:
+        if sentinel == 0:
+            writer = csv.DictWriter(output, fieldnames=row.keys(), 
+                                    delimiter=',', quotechar='"',
+                                    quoting=csv.QUOTE_MINIMAL)
+            writer.writeheader()
+            sentinel += 1
+
+        writer.writerow(row)
+    output.seek(0)
+    return output
+
+
+def split_csv(data, split_size=100):
+    """Returns a list of CSVs that are under the split_size
+
+        Arguments:
+
+        * data -- CSV file of data
+        * split_size -- maximum size of each chunk, in MB. Bulk API v2 cannot exceed 100MB in utf-8 encoding"""
+    from timeit import default_timer
+    max_bytes = int(split_size * 1024 * 1024)
+    header = next(data)
+    for line in data:
+        start = default_timer()
+        output = io.StringIO(newline=None) # newlines are translated to the system default line separator, os.linesep
+        writer = csv.writer(output,
+                            delimiter=',', quotechar='"',
+                            quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(header)
+        n = 0
+        log_rows = 0
+        for line in chain([line], data):
+            writer.writerow(line)
+            n += sum([len(item)+3 for item in line]) + 1
+            log_rows += 1
+            if n >= max_bytes:
+                duration = default_timer()-start 
+                print(f'split out {n/1024/1024:8.8} MBs ({log_rows:} rows) in {duration:4.4} seconds')
+                yield output.getvalue()
+                break
+    duration = default_timer()-start 
+    print(f'split out {n/1024/1024:8.8} MBs ({log_rows:} rows) in {duration:4.4} seconds')
+    yield output.getvalue()

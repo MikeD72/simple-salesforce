@@ -11,6 +11,10 @@ from simple_salesforce.bulk import (
     SFBulkHandler
 )
 
+from simple_salesforce.bulk_v2 import (
+    SFBulk_v2Handler
+)
+
 from simple_salesforce.login import (
     SalesforceLogin
 )

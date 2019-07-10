@@ -2,7 +2,7 @@
 
 
 # has to be defined prior to login import
-DEFAULT_API_VERSION = '38.0'
+DEFAULT_API_VERSION = '41.0'
 
 
 import logging
@@ -24,6 +24,7 @@ from simple_salesforce.exceptions import (
     SalesforceGeneralError
 )
 from simple_salesforce.bulk import SFBulkHandler
+from simple_salesforce.bulk_v2 import SFBulk_v2Handler
 
 try:
     from collections import OrderedDict
@@ -194,6 +195,9 @@ class Salesforce(object):
         self.bulk_url = ('https://{instance}/services/async/{version}/'
                          .format(instance=self.sf_instance,
                                  version=self.sf_version))
+        self.bulk_v2_url = ('https://{instance}/services/data/v{version}/jobs/ingest/'
+                            .format(instance=self.sf_instance,
+                                    version=self.sf_version))
 
         self.api_usage = {}
 
@@ -233,6 +237,12 @@ class Salesforce(object):
             # Deal with bulk API functions
             return SFBulkHandler(self.session_id, self.bulk_url, self.proxies,
                                  self.session)
+
+        if name == 'bulk_v2':
+            # Deal with bulk API v2 functions
+            return SFBulk_v2Handler(self.session_id, self.bulk_v2_url, self.proxies,
+                                    self.session)
+
 
         return SFType(
             name, self.session_id, self.sf_instance, sf_version=self.sf_version,
@@ -455,7 +465,7 @@ class Salesforce(object):
         result = self._call_salesforce(
             method,
             self.apex_url + action,
-            name="apexexcute",
+            name="apexecute",
             data=json.dumps(data), **kwargs
         )
         try:
