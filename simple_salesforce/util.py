@@ -97,7 +97,7 @@ def json_list_to_file(data):
     return output
 
 
-def split_csv(data, split_size=100):
+def split_csv(data, split_size=100, skip_rows=0):
     """Returns a list of CSVs that are under the split_size
 
         Arguments:
@@ -107,6 +107,7 @@ def split_csv(data, split_size=100):
     from timeit import default_timer
     max_bytes = int(split_size * 1024 * 1024)
     header = next(data)
+    total_rowcount = 0
     for line in data:
         start = default_timer()
         output = io.StringIO(newline=None) # newlines are translated to the system default line separator, os.linesep
@@ -114,17 +115,22 @@ def split_csv(data, split_size=100):
                             delimiter=',', quotechar='"',
                             quoting=csv.QUOTE_MINIMAL)
         writer.writerow(header)
-        n = 0
-        log_rows = 0
+        bytes_approx = 0
+        output_rowcount = 0
         for line in chain([line], data):
+            total_rowcount += 1
+            if total_rowcount < skip_rows:
+                continue
             writer.writerow(line)
-            n += sum([len(item)+3 for item in line]) + 1
-            log_rows += 1
-            if n >= max_bytes:
+            output_rowcount += 1
+            # estimate the file size conservatively:
+            # 1 byte per character, 3 bytes per item for quotechars and delimiters, and two bytes for newline
+            bytes_approx += sum([len(item)+3 for item in line]) + 2
+            if bytes_approx >= max_bytes:
                 duration = default_timer()-start 
-                print(f'split out {n/1024/1024:8.8} MBs ({log_rows:} rows) in {duration:4.4} seconds')
+                print(f'split out {bytes_approx/1024/1024:8.8} MBs ({output_rowcount:} rows) in {duration:4.4} seconds. Total progress {total_rowcount} rows')
                 yield output.getvalue()
                 break
     duration = default_timer()-start 
-    print(f'split out {n/1024/1024:8.8} MBs ({log_rows:} rows) in {duration:4.4} seconds')
+    print(f'split out {bytes_approx/1024/1024:8.8} MBs ({output_rowcount:} rows) in {duration:4.4} seconds. Total progress {total_rowcount} rows')
     yield output.getvalue()

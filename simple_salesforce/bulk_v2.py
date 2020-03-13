@@ -177,7 +177,7 @@ class SFBulk_v2Type(object):
 
     #pylint: disable=R0913
     def _bulk_operation(self, object_name, operation, data,
-                        external_id_field=None, wait=5):
+                        external_id_field=None, wait=5, skip_rows=0):
         """ String together helper functions to create a complete
         end-to-end bulk v2 API request
 
@@ -196,9 +196,9 @@ class SFBulk_v2Type(object):
             data = csv.reader(file, delimiter=',', quotechar='"')
         
         job_ids = []
-        for batch in split_csv(data, 100):
-            with open('batch.csv', 'w') as f:
-                f.write(batch)
+        for batch in split_csv(data, 100, skip_rows=skip_rows):
+            # with open('batch.csv', 'w') as f:
+            #     f.write(batch)
 
             job = self._create_job(object_name=object_name, operation=operation,
                                 external_id_field=external_id_field)
@@ -226,30 +226,30 @@ class SFBulk_v2Type(object):
         return "\n".join(results)
 
     # _bulk_operation wrappers to expose supported Salesforce bulk operations
-    def delete(self, data):
+    def delete(self, data, skip_rows=0):
         """ soft delete records """
         results = self._bulk_operation(object_name=self.object_name,
-                                       operation='delete', data=data)
+                                       operation='delete', data=data, skip_rows=skip_rows)
         return results
 
-    def insert(self, data):
+    def insert(self, data, skip_rows=0):
         """ insert/create records """
         results = self._bulk_operation(object_name=self.object_name,
-                                       operation='insert', data=data)
+                                       operation='insert', data=data, skip_rows=skip_rows)
         return results
 
-    def upsert(self, data, external_id_field):
+    def upsert(self, data, external_id_field, skip_rows=0):
         """ upsert records based on a unique identifier """
         results = self._bulk_operation(object_name=self.object_name,
                                        operation='upsert',
                                        external_id_field=external_id_field,
-                                       data=data)
+                                       data=data, skip_rows=skip_rows)
         return results
 
-    def update(self, data):
+    def update(self, data, skip_rows=0):
         """ update records """
         results = self._bulk_operation(object_name=self.object_name,
-                                       operation='update', data=data)
+                                       operation='update', data=data, skip_rows=skip_rows)
         return results
 
 # def seeksplit_unsafe(data, split_size=100):
